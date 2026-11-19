@@ -96,3 +96,18 @@
       font-size: 13px;
       font-weight: 600;
     }
+
+    .panel-filtros {
+      margin-top: 12px;
+      padding: 16px;
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .oculto {
+      display: none;
+    }
