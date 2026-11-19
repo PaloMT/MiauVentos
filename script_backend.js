@@ -207,7 +207,6 @@
     }
 
     (async () => {
-      await cargarCategorias();
       await obtenerUbicacion();
       buscar();
     })();

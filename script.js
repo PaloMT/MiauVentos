@@ -1,92 +1,29 @@
-const params = new URLSearchParams({ categoria: "musica", precio_max: 20 });
-const res = await fetch(`http://127.0.0.1:8000/api/eventos?${params}`);
-const { total, eventos } = await res.json();
-const btnAbrir = document.getElementById('btn-abrir-filtros');
-const panelFiltros = document.getElementById('panel-filtros');
-const iconoFlecha = document.getElementById('icono-flecha');
-const btnAplicar = document.getElementById('btn-aplicar');
-
-// 1. Abrir o cerrar el desplegable al pulsar el botón
-btnAbrir.addEventListener('click', () => {
-  const estaOculto = panelFiltros.classList.toggle('oculto');
-  btnAbrir.classList.toggle('activo', !estaOculto);
-  iconoFlecha.textContent = estaOculto ? '▼' : '▲';
-});
-
-// 2. Actualizar los textos al mover cada barra deslizante
-const inputPrecio = document.getElementById('filtro-precio');
-const textoPrecio = document.getElementById('valor-precio');
-inputPrecio.addEventListener('input', () => {
-  textoPrecio.textContent = inputPrecio.value == 0 ? 'Gratis' : `${inputPrecio.value} €`;
-});
-
-const inputDistancia = document.getElementById('filtro-distancia');
-const textoDistancia = document.getElementById('valor-distancia');
-inputDistancia.addEventListener('input', () => {
-  textoDistancia.textContent = `${inputDistancia.value} km`;
-});
-
-const inputDuracion = document.getElementById('filtro-duracion');
-const textoDuracion = document.getElementById('valor-duracion');
-inputDuracion.addEventListener('input', () => {
-  textoDuracion.textContent = `${inputDuracion.value} h`;
-});
-
-// 3. Cerrar el panel al pulsar "Aplicar filtros"
-btnAplicar.addEventListener('click', () => {
-  panelFiltros.classList.add('oculto');
-  btnAbrir.classList.remove('activo');
-  iconoFlecha.textContent = '▼';
-});
-
-function filtrarEventos() {
-  const maxPrecio = Number(inputPrecio.value);
-  const maxDistancia = Number(inputDistancia.value);
-  const maxDuracion = Number(inputDuracion.value);
-
-  let visibles = 0;
-
-  tarjetas.forEach((tarjeta) => {
-    const precio = Number(tarjeta.dataset.precio);
-    const distancia = Number(tarjeta.dataset.distancia);
-    const duracion = Number(tarjeta.dataset.duracion);
-
-    // Comprueba si el evento cumple los tres límites
-    const cumple = precio <= maxPrecio &&
-                    distancia <= maxDistancia &&
-                    duracion <= maxDuracion;
-
-    tarjeta.classList.toggle('oculto', !cumple);
-    if (cumple) visibles++;
-  });
-
-  btnAplicar.textContent = `Ver ${visibles} ${visibles === 1 ? 'evento' : 'eventos'}`;
-  avisoSinResultados.classList.toggle('oculto', visibles > 0);
-}  
-
 const btnToggleCategoria = document.getElementById('btn-toggle-categoria');
 const menuCategorias = document.getElementById('menu-categorias');
 const textoCategoria = document.getElementById('texto-categoria');
+const flechaCategoria = document.getElementById('flecha-categoria');
 const inputFiltroCategoria = document.getElementById('filtro-categoria');
 const botonesCategoria = document.querySelectorAll('.btn-opcion-cat');
 
-// Abrir o cerrar el desplegable
+// Abrir o cerrar el desplegable de categorías
 btnToggleCategoria.addEventListener('click', () => {
-  menuCategorias.classList.toggle('oculto');
+  const estaOculto = menuCategorias.classList.toggle('oculto');
+  flechaCategoria.textContent = estaOculto ? '▼' : '▲';
 });
 
 // Seleccionar una de las 12 categorías
 botonesCategoria.forEach((boton) => {
   boton.addEventListener('click', () => {
-    // Quitar estado activo al anterior y dárselo al pulsado
     botonesCategoria.forEach((b) => b.classList.remove('activo'));
     boton.classList.add('activo');
 
-    // Actualizar texto visible y valor oculto para el filtro
     textoCategoria.textContent = boton.textContent;
     inputFiltroCategoria.value = boton.dataset.valor;
 
-    // Cerrar el desplegable tras elegir
+    // Avisar a script_backend.js de que el filtro ha cambiado para que busque de nuevo
+    inputFiltroCategoria.dispatchEvent(new Event('input'));
+
     menuCategorias.classList.add('oculto');
+    flechaCategoria.textContent = '▼';
   });
 });
