@@ -27,3 +27,28 @@ botonesCategoria.forEach((boton) => {
     flechaCategoria.textContent = '▼';
   });
 });
+
+const IMAGENES_CATEGORIA = {
+  musica: "img/musica.jpg",
+  deporte: "img/deporte.jpg",
+  teatro: "img/teatro.jpg",
+  arte: "img/arte.jpg",
+  gastronomia: "img/gastronomia.jpg",
+  cine: "img/cine.jpg",
+  tecnologia: "img/tecnologia.jpg",
+  "aire-libre": "img/aire-libre.jpg",
+  talleres: "img/talleres.jpg",
+  fiesta: "img/fiesta.jpg",
+  familia: "img/familia.jpg",
+  default: "img/default.jpg" // Imagen por defecto si llega una categoría distinta
+};
+
+function obtenerImagenActividad(e) {
+  const raw = (e.categoria || e.grupo_id || e.grupo_nombre || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-");
+
+  return IMAGENES_CATEGORIA[raw] || IMAGENES_CATEGORIA.default;
+}
