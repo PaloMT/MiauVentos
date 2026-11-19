@@ -7,7 +7,7 @@
 
     body {
       font-family: system-ui, -apple-system, sans-serif;
-      background-color: #f3f4f6;
+      background-color: #B4E1EB;
       color: #605B51;
     }
 
@@ -16,7 +16,7 @@
       max-width: 480px;
       margin: 0 auto;
       min-height: 100vh;
-      background-color: #F3F4F4;
+      background-color: #B4E1EB;
     }
 
     /* 3. Cabecera fija arriba */
@@ -66,7 +66,8 @@
       border-radius: 16px;
       padding: 16px;
       background-color: #ffffff;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      box-shadow: 3px 5px 0px 4px #78A4CB;
+      border-radius: 16px;
     }
 
     .tarjeta .fecha {
