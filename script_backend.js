@@ -1,16 +1,4 @@
- <!-- Las tarjetas se generan con JavaScript desde la API -->
-    <main class="lista-eventos" id="lista-eventos">
-      <div id="sin-resultados" class="sin-resultados oculto">
-        <p>No hay eventos con esos filtros.</p>
-      </div>
-    </main>
-
-    <button id="btn-mas" class="boton-aplicar oculto" type="button">Mostrar más</button>
-
-  </div>
-
-  <script>
-    // ================== CONFIGURACIÓN ==================
+// ================== CONFIGURACIÓN ==================
     const API = "http://127.0.0.1:8000";
     const POR_PAGINA = 40;
     const SOL = { lat: 40.4168, lon: -3.7038 }; // Puerta del Sol, si no hay geolocalización
