@@ -15,13 +15,50 @@
       <h1>Explorar eventos</h1>
       <button id="btn-abrir-filtros" class="boton-busqueda">
         Buscar o filtrar eventos...
+        <span id="icono-flecha">▼</span>
       </button>
     </header>
+
+    <!-- FILTROS -->
+    <div id="panel-filtros" class="panel-filtros oculto">
+        
+        <!-- Filtro 1: Precio -->
+        <div class="grupo-filtro">
+          <label for="filtro-precio">
+            Precio máximo
+            <span id="valor-precio">50 €</span>
+          </label>
+          <input type="range" id="filtro-precio" min="0" max="50" step="5" value="50">
+        </div>
+
+        <!-- Filtro 2: Distancia -->
+        <div class="grupo-filtro">
+          <label for="filtro-distancia">
+            Distancia máxima
+            <span id="valor-distancia">10 km</span>
+          </label>
+          <input type="range" id="filtro-distancia" min="1" max="20" step="1" value="10">
+        </div>
+
+        <!-- Filtro 3: Duración -->
+        <div class="grupo-filtro">
+          <label for="filtro-duracion">
+            Duración máxima
+            <span id="valor-duracion">3 h</span>
+          </label>
+          <input type="range" id="filtro-duracion" min="0.5" max="5" step="0.5" value="3">
+        </div>
+
+        <button id="btn-aplicar" class="boton-aplicar" type="button">
+          Aplicar filtros
+        </button>
+
+      </div>
 
     <!-- Contenido principal con tarjetas de ejemplo -->
     <main class="lista-eventos">
 
-      <article class="tarjeta">
+      <article class="tarjeta" data-precio="15" data-distancia="1.8" data-duracion="2">
         <p class="fecha">Sábado · 19:00</p>
         <h2>Concierto acústico en la terraza</h2>
         <p class="lugar">Centro Cultural · Madrid</p>
@@ -32,7 +69,7 @@
         </div>
       </article>
 
-      <article class="tarjeta">
+      <article class="tarjeta" data-precio="0" data-distancia="3.2" data-duracion="1.5">
         <p class="fecha">Domingo · 10:30</p>
         <h2>Ruta guiada por el parque</h2>
         <p class="lugar">Parque del Retiro</p>
@@ -43,6 +80,10 @@
         </div>
       </article>
 
+      <div id="sin-resultados" class="sin-resultados oculto">
+        <p>No hay eventos con esos filtros.</p>
+      </div>
+
     </main>
 
   </div>
@@ -50,6 +91,73 @@
     const params = new URLSearchParams({ categoria: "musica", precio_max: 20 });
     const res = await fetch(`http://127.0.0.1:8000/api/eventos?${params}`);
     const { total, eventos } = await res.json();
+  </script>
+
+  <!-- Lógica para abrir/cerrar y actualizar valores -->
+  <script>
+    const btnAbrir = document.getElementById('btn-abrir-filtros');
+    const panelFiltros = document.getElementById('panel-filtros');
+    const iconoFlecha = document.getElementById('icono-flecha');
+    const btnAplicar = document.getElementById('btn-aplicar');
+
+    // 1. Abrir o cerrar el desplegable al pulsar el botón
+    btnAbrir.addEventListener('click', () => {
+      const estaOculto = panelFiltros.classList.toggle('oculto');
+      btnAbrir.classList.toggle('activo', !estaOculto);
+      iconoFlecha.textContent = estaOculto ? '▼' : '▲';
+    });
+
+    // 2. Actualizar los textos al mover cada barra deslizante
+    const inputPrecio = document.getElementById('filtro-precio');
+    const textoPrecio = document.getElementById('valor-precio');
+    inputPrecio.addEventListener('input', () => {
+      textoPrecio.textContent = inputPrecio.value == 0 ? 'Gratis' : `${inputPrecio.value} €`;
+    });
+
+    const inputDistancia = document.getElementById('filtro-distancia');
+    const textoDistancia = document.getElementById('valor-distancia');
+    inputDistancia.addEventListener('input', () => {
+      textoDistancia.textContent = `${inputDistancia.value} km`;
+    });
+
+    const inputDuracion = document.getElementById('filtro-duracion');
+    const textoDuracion = document.getElementById('valor-duracion');
+    inputDuracion.addEventListener('input', () => {
+      textoDuracion.textContent = `${inputDuracion.value} h`;
+    });
+
+    // 3. Cerrar el panel al pulsar "Aplicar filtros"
+    btnAplicar.addEventListener('click', () => {
+      panelFiltros.classList.add('oculto');
+      btnAbrir.classList.remove('activo');
+      iconoFlecha.textContent = '▼';
+    });
+
+    function filtrarEventos() {
+      const maxPrecio = Number(inputPrecio.value);
+      const maxDistancia = Number(inputDistancia.value);
+      const maxDuracion = Number(inputDuracion.value);
+
+      let visibles = 0;
+
+      tarjetas.forEach((tarjeta) => {
+        const precio = Number(tarjeta.dataset.precio);
+        const distancia = Number(tarjeta.dataset.distancia);
+        const duracion = Number(tarjeta.dataset.duracion);
+
+        // Comprueba si el evento cumple los tres límites
+        const cumple = precio <= maxPrecio &&
+                       distancia <= maxDistancia &&
+                       duracion <= maxDuracion;
+
+        tarjeta.classList.toggle('oculto', !cumple);
+        if (cumple) visibles++;
+      });
+
+      btnAplicar.textContent = `Ver ${visibles} ${visibles === 1 ? 'evento' : 'eventos'}`;
+      avisoSinResultados.classList.toggle('oculto', visibles > 0);
+    }  
+
   </script>
 </body>
 </html>
