@@ -20,6 +20,27 @@ app.add_middleware(
 # main.py junto a la carpeta data/. Si main.py está dentro de data/, quita "data".
 RUTA_CSV = Path(__file__).parent / "data" / "eventos.csv"
 
+# Categorías de la web -> categorías del CSV que agrupan.
+# "id" es lo que envía el HTML en ?categoria=...
+GRUPOS = [
+    {"id": "cursos_talleres", "nombre": "Cursos y talleres",          "csv": ["taller"],                  "color": None},
+    {"id": "musica",          "nombre": "Música",                     "csv": ["musica", "danza"],         "color": None},
+    {"id": "espectaculos",    "nombre": "Espectáculos",               "csv": ["teatro", "cine"],          "color": None},
+    {"id": "deporte",         "nombre": "Deporte",                    "csv": ["deporte"],                 "color": None},
+    {"id": "infantil",        "nombre": "Infantil",                   "csv": ["infantil"],                "color": None},
+    {"id": "conferencias",    "nombre": "Conferencias",               "csv": ["conferencia"],             "color": None},
+    {"id": "exposicion",      "nombre": "Exposición",                 "csv": ["exposicion"],              "color": None},
+    {"id": "fiestas",         "nombre": "Fiestas y festivales",       "csv": ["fiestas"],                 "color": "rosa"},
+    {"id": "literatura",      "nombre": "Literatura",                 "csv": ["literatura", "club_lectura"], "color": None},
+    {"id": "visitas",         "nombre": "Visitas e itinerarios",      "csv": ["visita_guiada"],           "color": None},
+    {"id": "aire_libre",      "nombre": "Aire libre y medio ambiente", "csv": ["aire_libre"],             "color": None},
+    {"id": "otros",           "nombre": "Otros",                      "csv": ["otros"],                   "color": "gris"},
+]
+
+# Búsqueda inversa: categoría del CSV -> grupo
+GRUPO_DE = {c: g for g in GRUPOS for c in g["csv"]}
+GRUPO_OTROS = GRUPO_DE["otros"]  # categorías nuevas o desconocidas caen aquí
+
 
 # ---------- Utilidades ----------
 
@@ -54,10 +75,15 @@ def cargar_eventos() -> list[dict]:
             gratis = fila["gratis"].strip().lower() == "true"
             precio = 0.0 if gratis else a_numero(fila["precio_min"])  # None = precio desconocido
 
+            grupo = GRUPO_DE.get(fila["categoria"], GRUPO_OTROS)
+
             eventos.append({
                 # Datos para mostrar en el HTML
                 "id": fila["id"],
                 "titulo": fila["titulo"],
+                "grupo": grupo["id"],
+                "grupo_nombre": grupo["nombre"],
+                "color": grupo["color"],
                 "categoria": fila["categoria"],
                 "categoria_nombre": fila["categoria_nombre"],
                 "subcategoria": fila["subcategoria"],
@@ -81,7 +107,6 @@ def cargar_eventos() -> list[dict]:
                 "url": fila["url"],
                 # Campos internos para filtrar (se quitan antes de responder)
                 "_hora": a_hora(fila["hora_inicio"]),
-                "_cat": normalizar(fila["categoria"]) + " " + normalizar(fila["categoria_nombre"]),
             })
     return eventos
 
@@ -94,16 +119,19 @@ def publico(evento: dict) -> dict:
 
 @app.get("/api/categorias")
 def obtener_categorias():
-    """Lista de categorías para rellenar un <select> en el HTML."""
-    vistas = {}
+    """Categorías de la web (con número de eventos) para pintar los filtros en el HTML."""
+    cuenta = {}
     for e in cargar_eventos():
-        vistas[e["categoria"]] = e["categoria_nombre"]
-    return [{"valor": k, "nombre": v} for k, v in sorted(vistas.items(), key=lambda kv: kv[1])]
+        cuenta[e["grupo"]] = cuenta.get(e["grupo"], 0) + 1
+    return [
+        {"id": g["id"], "nombre": g["nombre"], "color": g["color"], "total": cuenta.get(g["id"], 0)}
+        for g in GRUPOS
+    ]
 
 
 @app.get("/api/eventos")
 def obtener_eventos(
-    categoria: Optional[str] = Query(None, description="Ej: musica, teatro, taller"),
+    categoria: Optional[str] = Query(None, description="id de /api/categorias; varias separadas por coma. Ej: musica,espectaculos"),
     duracion_min: Optional[int] = Query(None, ge=0, description="Minutos"),
     duracion_max: Optional[int] = Query(None, ge=0, description="Minutos"),
     inicio_desde: Optional[str] = Query(None, pattern=r"^\d{2}:\d{2}$", description="HH:MM"),
@@ -111,15 +139,15 @@ def obtener_eventos(
     precio_min: Optional[float] = Query(None, ge=0),
     precio_max: Optional[float] = Query(None, ge=0),
 ):
-    cat = normalizar(categoria) if categoria else None
+    cats = {normalizar(c) for c in categoria.split(",") if c.strip()} if categoria else None
     desde = a_hora(inicio_desde) if inicio_desde else None
     hasta = a_hora(inicio_hasta) if inicio_hasta else None
 
     resultados = []
 
     for e in cargar_eventos():
-        # Categoría (parcial, sin mayúsculas ni tildes)
-        if cat and cat not in e["_cat"]:
+        # Categoría (por grupo de la web; admite varias)
+        if cats and e["grupo"] not in cats:
             continue
 
         # Duración
