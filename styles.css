@@ -103,6 +103,27 @@
       font-weight: 600;
     }
 
+    .filtro-categoria{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    #filtro-hora {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background-color: #ffffff;
+    color: #605B51;
+    font-family: inherit; /* Obliga a usar la fuente del body */
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+  }
+
     .panel-filtros {
       margin-top: 12px;
       padding: 16px;
@@ -164,6 +185,65 @@
       margin-bottom: 12px;
       font-size: 15px;
     }
+
+    /* Botón principal del desplegable */
+.btn-select-categoria {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background-color: #ffffff;
+  color: #605B51;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-select-categoria:focus {
+  outline: none;
+  border-color: #612D53;
+}
+
+/* Contenedor desplegable con cuadrícula de 3x4 para los 12 botones */
+.menu-categorias {
+  margin-top: 8px;
+  padding: 10px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+/* Cada uno de los 12 botones */
+.btn-opcion-cat {
+  padding: 8px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: #f9fafb;
+  color: #605B51;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.btn-opcion-cat:hover {
+  background-color: #eef2ff;
+}
+
+/* Botón de categoría seleccionado */
+.btn-opcion-cat.activo {
+  background-color: #612D53;
+  color: #ffffff;
+  border-color: #612D53;
+}
 
     .oculto {
       display: none;
