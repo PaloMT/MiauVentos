@@ -33,10 +33,9 @@ GRUPOS = [
     {"id": "exposicion",      "nombre": "Exposición",                 "csv": ["exposicion"],    "color": None},
     {"id": "fiestas",         "nombre": "Fiestas y festivales",       "csv": ["fiestas"],       "color": "rosa"},
     {"id": "danza",           "nombre": "Danza",                      "csv": ["danza"],         "color": None},
-    {"id": "literatura",      "nombre": "Literatura y recitales",     "csv": ["literatura"],    "color": None},
+    {"id": "literatura",      "nombre": "Literatura y recitales",     "csv": ["literatura","club_lectura"],    "color": None},
     {"id": "visitas",         "nombre": "Visitas e itinerarios",      "csv": ["visita_guiada"], "color": None},
     {"id": "aire_libre",      "nombre": "Aire libre y medio ambiente", "csv": ["aire_libre"],   "color": None},
-    {"id": "club_lectura",    "nombre": "Club de lectura",            "csv": ["club_lectura"],  "color": None},
     {"id": "otros",           "nombre": "Otros",                      "csv": ["otros"],         "color": "gris"},
 ]
 
