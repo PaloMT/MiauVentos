@@ -29,26 +29,21 @@ botonesCategoria.forEach((boton) => {
 });
 
 const IMAGENES_CATEGORIA = {
-  musica: "img/musica.jpg",
-  deporte: "img/deporte.jpg",
-  teatro: "img/teatro.jpg",
-  arte: "img/arte.jpg",
-  gastronomia: "img/gastronomia.jpg",
-  cine: "img/cine.jpg",
-  tecnologia: "img/tecnologia.jpg",
-  "aire-libre": "img/aire-libre.jpg",
-  talleres: "img/talleres.jpg",
-  fiesta: "img/fiesta.jpg",
-  familia: "img/familia.jpg",
-  default: "img/default.jpg" // Imagen por defecto si llega una categoría distinta
+  cursos_talleres: "img/cursos.png",
+  musica: "img/musica.png",
+  espectaculos: "img/espectaculos.png",
+  deporte: "img/deportes.png",
+  infantil: "img/familia.jpg",
+  conferencias: "img/tecnologia.jpg",
+  exposicion: "img/arte.jpg",
+  fiestas: "img/fiesta.jpg",
+  literatura: "img/arte.jpg",
+  visitas: "img/arte.jpg",
+  aire_libre: "img/aire-libre.jpg",
+  otros: "img/otros.png",
+  default: "img/otros.png"
 };
 
 function obtenerImagenActividad(e) {
-  const raw = (e.categoria || e.grupo_id || e.grupo_nombre || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "-");
-
-  return IMAGENES_CATEGORIA[raw] || IMAGENES_CATEGORIA.default;
+  return IMAGENES_CATEGORIA[e.grupo] || IMAGENES_CATEGORIA.default;
 }
