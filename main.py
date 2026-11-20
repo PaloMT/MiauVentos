@@ -25,7 +25,7 @@ RUTA_CSV = Path(__file__).parent / "data" / "eventos.csv"
 GRUPOS = [
     {"id": "cursos_talleres", "nombre": "Cursos y talleres",          "csv": ["taller"],        "color": None},
     {"id": "musica",          "nombre": "Música",                     "csv": ["musica"],        "color": None},
-    {"id": "teatro",          "nombre": "Teatro y circo",             "csv": ["teatro"],        "color": None},
+    {"id": "teatro",          "nombre": "Espectáculos",             "csv": ["teatro"],        "color": None},
     {"id": "cine",            "nombre": "Cine",                       "csv": ["cine"],          "color": None},
     {"id": "deporte",         "nombre": "Deporte",                    "csv": ["deporte"],       "color": None},
     {"id": "infantil",        "nombre": "Infantil",                   "csv": ["infantil"],      "color": None},
