@@ -1,5 +1,5 @@
 // ================== CONFIGURACIÓN ==================
-const API = "http://127.0.0.1:8000";
+const API = "";
 const POR_PAGINA = 40;
 const SOL = { lat: 40.4168, lon: -3.7038 }; // Puerta del Sol, si no hay geolocalización
 
@@ -46,15 +46,6 @@ function formatoFecha(iso) {
     { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-function textoFecha(e) {
-  const hora = e.hora_inicio ? ` · ${e.hora_inicio}` : '';
-  if (e.estado === 'en_curso') {
-    return `En curso · hasta ${formatoFecha(e.fecha_fin)}`;
-  }
-  // En eventos recurrentes, la próxima sesión dentro del rango elegido
-  return `${formatoFecha(e.proxima_fecha || e.fecha_inicio)}${hora}`;
-}
-
 function hoyISO() {   // "2026-11-20" en hora local (toISOString usaría UTC)
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -75,7 +66,19 @@ const fechaEuropea = (iso) => iso ? iso.split('-').reverse().join('/') : '';
 // "19:30" en formato 24 h ("" si no es válida)
 const horaValida = (texto) => /^([01]\d|2[0-3]):[0-5]\d$/.test(texto) ? texto : '';
 
+function textoFecha(e) {
+  const hora = e.hora_inicio ? ` · ${e.hora_inicio}` : '';
+  if (e.estado === 'recurrente') {
+    return e.dias_texto ? `Todos los ${e.dias_texto}${hora}` : 'Horario por confirmar';
+  }
+  if (e.estado === 'en_curso') {
+    return `En curso · hasta ${formatoFecha(e.fecha_fin)}`;
+  }
+  return `${formatoFecha(e.fecha_inicio)}${hora}`;
+}
+
 function textoDuracion(min) {
+  if (min == null) return '';
   if (min < 60) return `${min} min`;
   return `${num(Math.round((min / 60) * 10) / 10)} h`;
 }

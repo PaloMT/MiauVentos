@@ -1,11 +1,15 @@
 import csv
+import re
 import unicodedata
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="API de eventos")
@@ -16,33 +20,43 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # main.py junto a la carpeta data/. Si main.py está dentro de data/, quita "data".
-RUTA_CSV = Path(__file__).parent / "data" / "eventos.csv"
+RUTA_CSV = Path(__file__).parent / "data" / "actividades_unidas.csv"
 
-# Categorías de la web -> categorías del CSV que agrupan.
+# Los talleres (fuente "Talleres") son clases semanales sin fecha, sin precio y sin coordenadas.
+# Son ~80 % del CSV. Ponlo en False si solo quieres eventos con fecha.
+INCLUIR_TALLERES = True
+
+# Categorías de la web -> categorías del CSV que agrupan (ya normalizadas: minúsculas y sin tildes).
 # "id" es lo que envía el HTML en ?categoria=...
 GRUPOS = [
-    {"id": "cursos_talleres", "nombre": "Cursos y talleres",          "csv": ["taller"],        "color": None},
-    {"id": "musica",          "nombre": "Música",                     "csv": ["musica","danza"],        "color": None},
-    {"id": "teatro",          "nombre": "Espectáculos",             "csv": ["teatro","cine"],        "color": None},
-    {"id": "deporte",         "nombre": "Deporte",                    "csv": ["deporte"],       "color": None},
-    {"id": "infantil",        "nombre": "Infantil",                   "csv": ["infantil"],      "color": None},
-    {"id": "conferencias",    "nombre": "Conferencias",               "csv": ["conferencia"],   "color": None},
-    {"id": "exposicion",      "nombre": "Exposición",                 "csv": ["exposicion"],    "color": None},
-    {"id": "fiestas",         "nombre": "Fiestas y festivales",       "csv": ["fiestas"],       "color": "rosa"},
-    {"id": "literatura",      "nombre": "Literatura y recitales",     "csv": ["literatura","club_lectura"],    "color": None},
-    {"id": "visitas",         "nombre": "Visitas e itinerarios",      "csv": ["visita_guiada"], "color": None},
-    {"id": "aire_libre",      "nombre": "Aire libre y medio ambiente", "csv": ["aire_libre"],   "color": None},
-    {"id": "otros",           "nombre": "Otros",                      "csv": ["otros"],         "color": "gris"},
+    {"id": "cursos_talleres", "nombre": "Cursos y talleres",           "csv": ["cursos y talleres"],                          "color": None},
+    {"id": "musica",          "nombre": "Música",                      "csv": ["musica", "danza"],                            "color": None},
+    {"id": "espectaculos",    "nombre": "Espectáculos",                "csv": ["teatro y circo", "cine"],                     "color": None},
+    {"id": "deporte",         "nombre": "Deporte",                     "csv": ["deporte"],                                    "color": None},
+    {"id": "infantil",        "nombre": "Infantil",                    "csv": ["infantil"],                                   "color": None},
+    {"id": "conferencias",    "nombre": "Conferencias",                "csv": ["conferencias"],                               "color": None},
+    {"id": "exposicion",      "nombre": "Exposición",                  "csv": ["exposicion"],                                 "color": None},
+    {"id": "fiestas",         "nombre": "Fiestas y festivales",        "csv": ["fiestas y festivales"],                       "color": "rosa"},
+    {"id": "literatura",      "nombre": "Literatura",                  "csv": ["literatura y recitales", "club de lectura"],  "color": None},
+    {"id": "visitas",         "nombre": "Visitas e itinerarios",       "csv": ["visitas e itinerarios"],                      "color": None},
+    {"id": "aire_libre",      "nombre": "Aire libre y medio ambiente", "csv": ["aire libre y medio ambiente"],                "color": None},
+    {"id": "otros",           "nombre": "Otros",                       "csv": ["otros"],                                      "color": "gris"},
 ]
 
 # Búsqueda inversa: categoría del CSV -> grupo
 GRUPO_DE = {c: g for g in GRUPOS for c in g["csv"]}
 GRUPO_OTROS = GRUPO_DE["otros"]  # categorías nuevas o desconocidas caen aquí
 
-# date.weekday() -> nombre que usa la columna dias_semana del CSV
-DIAS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
+# Días de la semana: columna de horario del CSV, letra de DIAS-SEMANA y nombre para mostrar
+DIAS = [
+    ("LUNES", "L", "lunes"), ("MARTES", "M", "martes"), ("MIERCOLES", "X", "miércoles"),
+    ("JUEVES", "J", "jueves"), ("VIERNES", "V", "viernes"), ("SABADO", "S", "sábados"),
+    ("DOMINGO", "D", "domingos"),
+]
+NOMBRE_DIA = {letra: nombre for _, letra, nombre in DIAS}
 
 
 # ---------- Utilidades ----------
@@ -68,78 +82,130 @@ def a_hora(valor: str) -> Optional[time]:
 
 
 def a_fecha(valor: str) -> Optional[date]:
+    """'2027-01-27 00:00:00.0' -> date(2027, 1, 27)"""
     try:
-        return date.fromisoformat(valor.strip())
+        return datetime.strptime(valor.strip()[:10], "%Y-%m-%d").date()
     except (ValueError, AttributeError):
         return None
 
 
-def proxima_sesion(evento: dict, desde: date, hasta: Optional[date]) -> Optional[date]:
-    """Primer día entre desde y hasta en el que hay sesión, o None si no hay ninguno.
+def parsear_precio(texto: str, gratuito: str):
+    """Devuelve (gratis, precio). precio=None si se desconoce.
 
-    Hay sesión si el día está entre fecha_inicio y fecha_fin, cae en uno de los
-    dias_semana (si los hay) y no está en dias_excluidos (ver data/ESQUEMA.md).
+    GRATUITO: '1' gratis, '0' de pago, '' desconocido.
+    PRECIO es texto libre: '3 euros', 'Desde 27 euros', '15,75 euros - 21 euros', '6 a 22 euros'...
+    Se toma el importe más bajo que aparezca junto a la palabra 'euro'.
     """
-    if evento["_inicio"] is None:
-        return desde  # sin fechas: no se puede descartar
-    dia = max(evento["_inicio"], desde)
-    ultimo = min(evento["_fin"], hasta) if hasta else evento["_fin"]
-    while dia <= ultimo:
-        if (not evento["_dias"] or DIAS[dia.weekday()] in evento["_dias"]) and dia not in evento["_excluidos"]:
-            return dia
-        dia += timedelta(days=1)
-    return None
+    texto = (texto or "").replace("\xa0", " ").strip()
+    importes = [
+        float(m.group(1).replace(",", "."))
+        for m in re.finditer(r"(\d+(?:[.,]\d+)?)(?:\s*(?:a|-)\s*\d+(?:[.,]\d+)?)?\s*euro", texto, re.I)
+    ]
+    if gratuito.strip() == "1" or (not importes and re.search(r"gratuit|entrada libre|acceso libre", texto, re.I)):
+        return True, 0.0
+    return False, (min(importes) if importes else None)
+
+
+def parsear_duracion(texto: str) -> Optional[int]:
+    """'1 hora, 30 min' / '2 HORAS, 30 MIN' / '45 min' -> minutos."""
+    h = re.search(r"(\d+)\s*hora", texto or "", re.I)
+    m = re.search(r"(\d+)\s*min", texto or "", re.I)
+    if not h and not m:
+        return None
+    return (int(h.group(1)) * 60 if h else 0) + (int(m.group(1)) if m else 0)
+
+
+def horario_taller(fila: dict):
+    """Primer día con horario -> (hora_inicio, duracion_min). Los talleres traen una columna por día."""
+    for col, _, _ in DIAS:
+        hora = fila.get(f"HORA_INICIO_{col}", "").strip()
+        if hora:
+            return hora, parsear_duracion(fila.get(f"DURACION_ACTIVIDAD_{col}", ""))
+    return "", None
+
+
+def texto_dias(dias_semana: str) -> str:
+    """'L,X' -> 'lunes y miércoles'"""
+    nombres = [NOMBRE_DIA[d] for d in dias_semana.replace(" ", "").split(",") if d in NOMBRE_DIA]
+    if len(nombres) <= 1:
+        return nombres[0] if nombres else ""
+    return ", ".join(nombres[:-1]) + " y " + nombres[-1]
+
+
+def direccion(fila: dict) -> str:
+    via = " ".join(p for p in (fila["CLASE-VIAL-INSTALACION"], fila["NOMBRE-VIA-INSTALACION"]) if p).strip()
+    return f'{via}, {fila["NUM-INSTALACION"]}' if via and fila["NUM-INSTALACION"] else via
 
 
 # ---------- Carga del CSV (una sola vez) ----------
 
 @lru_cache(maxsize=1)
 def cargar_eventos() -> list[dict]:
+    hoy = date.today()
     eventos = []
-    # utf-8-sig por si el CSV trae BOM (típico al guardar desde Excel)
+    # utf-8-sig: el CSV trae BOM. delimiter=";": este CSV usa punto y coma.
     with open(RUTA_CSV, mode="r", encoding="utf-8-sig", newline="") as f:
-        for fila in csv.DictReader(f, delimiter=","):
-            gratis = fila["gratis"].strip().lower() == "true"
-            precio = 0.0 if gratis else a_numero(fila["precio_min"])  # None = precio desconocido
+        for n, fila in enumerate(csv.DictReader(f, delimiter=";")):
+            es_taller = fila["FUENTE"] == "Talleres"
+            if es_taller and not INCLUIR_TALLERES:
+                continue
 
-            grupo = GRUPO_DE.get(fila["categoria"], GRUPO_OTROS)
-            inicio = a_fecha(fila["fecha_inicio"])
+            inicio = a_fecha(fila["FECHA"])
+            fin = a_fecha(fila["FECHA-FIN"]) or inicio
+
+            # Descarta eventos con fecha ya pasada (también elimina la fuente "Banda", que es de 2025).
+            if not es_taller and (fin is None or fin < hoy):
+                continue
+
+            if es_taller:
+                hora_inicio, duracion = horario_taller(fila)
+                estado = "recurrente"
+            else:
+                hora_inicio, duracion = fila["HORA"].strip(), None  # la agenda no trae duración
+                en_curso = inicio and fin and inicio < fin and inicio <= hoy
+                estado = "en_curso" if en_curso else "proximo"
+
+            gratis, precio = parsear_precio(fila["PRECIO"], fila["GRATUITO"])
+            if es_taller:
+                gratis, precio = False, None  # los talleres no traen precio
+
+            grupo = GRUPO_DE.get(normalizar(fila["CATEGORIA"]), GRUPO_OTROS)
 
             eventos.append({
                 # Datos para mostrar en el HTML
-                "id": fila["id"],
-                "titulo": fila["titulo"],
+                "id": fila["ID-EVENTO"] or f"{fila['FUENTE'].lower()}-{n}",
+                "titulo": fila["TITULO"],
                 "grupo": grupo["id"],
                 "grupo_nombre": grupo["nombre"],
                 "color": grupo["color"],
-                "categoria": fila["categoria"],
-                "categoria_nombre": fila["categoria_nombre"],
-                "subcategoria": fila["subcategoria"],
+                "categoria": normalizar(fila["CATEGORIA"]),
+                "categoria_nombre": fila["CATEGORIA"],
+                "subcategoria": "",
                 "gratis": gratis,
                 "precio": precio,
-                "precio_texto": fila["precio_texto"],
-                "fecha_inicio": fila["fecha_inicio"],
-                "fecha_fin": fila["fecha_fin"],
-                "hora_inicio": fila["hora_inicio"],
-                "hora_fin": fila["hora_fin"],
-                "duracion_min": int(a_numero(fila["duracion_min"]) or 0),
-                "estado": fila["estado"],
-                "publico": fila["publico"],
-                "lugar_nombre": fila["lugar_nombre"],
-                "direccion": fila["direccion"],
-                "distrito": fila["distrito"],
-                "barrio": fila["barrio"],
-                "lat": a_numero(fila["lat"]),
-                "lon": a_numero(fila["lon"]),
-                "descripcion": fila["descripcion"],
-                "url": fila["url"],
+                "precio_texto": fila["PRECIO"].replace("\xa0", " ").strip(),
+                "fecha_inicio": inicio.isoformat() if inicio else "",
+                "fecha_fin": fin.isoformat() if fin else "",
+                "hora_inicio": hora_inicio,
+                "hora_fin": "",
+                "duracion_min": duracion,  # None = desconocida
+                "estado": estado,
+                "dias_texto": texto_dias(fila["DIAS-SEMANA"]) if es_taller else "",
+                "publico": fila["PUBLICO"].strip(),
+                "lugar_nombre": fila["LUGAR"],
+                "direccion": direccion(fila),
+                "distrito": fila["DISTRITO"].title(),
+                "barrio": fila["BARRIO-INSTALACION"].title(),
+                "lat": a_numero(fila["LATITUD"]),
+                "lon": a_numero(fila["LONGITUD"]),
+                "descripcion": fila["DESCRIPCION"],
+                "url": fila["URL-ACTIVIDAD"] or fila["CONTENT-URL"],
                 # Campos internos para filtrar (se quitan antes de responder)
-                "_hora": a_hora(fila["hora_inicio"]),
-                "_inicio": inicio,
-                "_fin": a_fecha(fila["fecha_fin"]) or inicio,  # sin fin = un solo día
-                "_dias": {normalizar(d) for d in fila["dias_semana"].split(";") if d.strip()},
-                "_excluidos": {f for f in map(a_fecha, fila["dias_excluidos"].split(";")) if f},
+                "_hora": a_hora(hora_inicio),
             })
+
+    # Primero los eventos con fecha (por fecha y hora); los talleres, al final.
+    eventos.sort(key=lambda e: (e["estado"] == "recurrente", e["fecha_inicio"], e["hora_inicio"]))
     return eventos
 
 
@@ -163,24 +229,17 @@ def obtener_categorias():
 
 @app.get("/api/eventos")
 def obtener_eventos(
-    categoria: Optional[str] = Query(None, description="id de /api/categorias; varias separadas por coma. Ej: musica,teatro"),
+    categoria: Optional[str] = Query(None, description="id de /api/categorias; varias separadas por coma. Ej: musica,espectaculos"),
     duracion_min: Optional[int] = Query(None, ge=0, description="Minutos"),
     duracion_max: Optional[int] = Query(None, ge=0, description="Minutos"),
     inicio_desde: Optional[str] = Query(None, pattern=r"^\d{2}:\d{2}$", description="HH:MM"),
     inicio_hasta: Optional[str] = Query(None, pattern=r"^\d{2}:\d{2}$", description="HH:MM"),
     precio_min: Optional[float] = Query(None, ge=0),
     precio_max: Optional[float] = Query(None, ge=0),
-    fecha_desde: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="AAAA-MM-DD; por defecto, hoy"),
-    fecha_hasta: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="AAAA-MM-DD"),
 ):
     cats = {normalizar(c) for c in categoria.split(",") if c.strip()} if categoria else None
     desde = a_hora(inicio_desde) if inicio_desde else None
     hasta = a_hora(inicio_hasta) if inicio_hasta else None
-    # Sin fecha_desde se usa hoy, para no mostrar eventos que ya terminaron
-    dia_desde = a_fecha(fecha_desde) if fecha_desde else date.today()
-    dia_hasta = a_fecha(fecha_hasta) if fecha_hasta else None
-    if dia_desde is None or (fecha_hasta and dia_hasta is None):
-        raise HTTPException(status_code=422, detail="Fecha no válida, usa AAAA-MM-DD")
 
     resultados = []
 
@@ -189,16 +248,14 @@ def obtener_eventos(
         if cats and e["grupo"] not in cats:
             continue
 
-        # Fecha (tiene que haber alguna sesión entre dia_desde y dia_hasta)
-        proxima = proxima_sesion(e, dia_desde, dia_hasta)
-        if proxima is None:
-            continue
-
-        # Duración
-        if duracion_min is not None and e["duracion_min"] < duracion_min:
-            continue
-        if duracion_max is not None and e["duracion_min"] > duracion_max:
-            continue
+        # Duración (los eventos sin duración conocida quedan fuera si filtras por duración)
+        if duracion_min is not None or duracion_max is not None:
+            if e["duracion_min"] is None:
+                continue
+            if duracion_min is not None and e["duracion_min"] < duracion_min:
+                continue
+            if duracion_max is not None and e["duracion_min"] > duracion_max:
+                continue
 
         # Hora de inicio (los eventos sin hora quedan fuera si filtras por hora)
         if desde or hasta:
@@ -218,12 +275,8 @@ def obtener_eventos(
             if precio_max is not None and e["precio"] > precio_max:
                 continue
 
-        resultados.append((proxima, e))
-
-    # Orden por fecha de la próxima sesión. El mismo día, primero lo que empieza
-    # ese día y después lo que ya estaba en curso (exposiciones largas, etc.)
-    resultados.sort(key=lambda r: (r[0], r[1]["_inicio"] is not None and r[1]["_inicio"] < r[0],
-                                   r[1]["_hora"] or time.max))
-    resultados = [{**publico(e), "proxima_fecha": proxima.isoformat()} for proxima, e in resultados]
+        resultados.append(publico(e))
 
     return {"total": len(resultados), "eventos": resultados}
+
+    app.mount("/", StaticFiles(directory=Path(__file__).parent / "web", html=True), name="web")
