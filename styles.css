@@ -127,8 +127,7 @@
    margin-top: 12px;
  }
 
- #filtro-hora,
- .filtro-fecha {
+ .filtro-texto {
    width: 100%;
    padding: 10px 12px;
    border: 1px solid #d1d5db;
@@ -150,9 +149,42 @@
    gap: 8px;
  }
 
- .rango-fechas .filtro-fecha {
+ .rango-fechas .campo-picker {
    flex: 1;
    min-width: 0;
+ }
+
+ /* Campo de texto (dd/mm/aaaa o hh:mm) con botón que abre el selector del navegador */
+ .campo-picker {
+   position: relative;
+ }
+
+ .campo-picker .filtro-texto {
+   padding-right: 38px;
+ }
+
+ .btn-picker {
+   position: absolute;
+   right: 6px;
+   top: 50%;
+   transform: translateY(-50%);
+   border: none;
+   background: none;
+   font-size: 16px;
+   cursor: pointer;
+ }
+
+ /* El selector nativo solo se usa para abrir el calendario/reloj; no se ve */
+ .selector-nativo {
+   position: absolute;
+   left: 0;
+   bottom: 0;
+   width: 100%;
+   height: 0;
+   opacity: 0;
+   pointer-events: none;
+   border: 0;
+   padding: 0;
  }
 
  .panel-filtros {

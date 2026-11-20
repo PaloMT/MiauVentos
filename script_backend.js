@@ -60,6 +60,21 @@ function hoyISO() {   // "2026-11-20" en hora local (toISOString usaría UTC)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// "20/11/2026" -> "2026-11-20" ("" si no es una fecha real)
+function fechaISO(texto) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(texto);
+  if (!m) return '';
+  const [, d, mes, y] = m.map(Number);
+  const f = new Date(y, mes - 1, d);
+  return f.getDate() === d && f.getMonth() === mes - 1 ? `${m[3]}-${m[2]}-${m[1]}` : '';
+}
+
+// "2026-11-20" -> "20/11/2026"
+const fechaEuropea = (iso) => iso ? iso.split('-').reverse().join('/') : '';
+
+// "19:30" en formato 24 h ("" si no es válida)
+const horaValida = (texto) => /^([01]\d|2[0-3]):[0-5]\d$/.test(texto) ? texto : '';
+
 function textoDuracion(min) {
   if (min < 60) return `${min} min`;
   return `${num(Math.round((min / 60) * 10) / 10)} h`;
@@ -98,13 +113,54 @@ inputDuracion.addEventListener('input', () => {
 });
 
 // Cualquier cambio de filtro -> buscar (con pequeña espera para no saturar)
-// Fechas: no se puede elegir antes de hoy ni un "hasta" anterior al "desde"
-inputFechaDesde.value = inputFechaDesde.min = inputFechaHasta.min = hoyISO();
-inputFechaDesde.addEventListener('input', () => {
-  inputFechaHasta.min = inputFechaDesde.value || hoyISO();
-  if (inputFechaHasta.value && inputFechaHasta.value < inputFechaHasta.min)
-    inputFechaHasta.value = inputFechaHasta.min;
-});
+// ================== FECHA (dd/mm/aaaa) y HORA (24 h) ==================
+// Se escriben a mano o con el botón, que abre el selector del navegador.
+// El texto siempre queda en formato europeo, sea cual sea el idioma del navegador.
+function prepararCampo(input, separador, aTexto, aNativo) {
+  const nativo = input.parentElement.querySelector('.selector-nativo');
+  const boton = input.parentElement.querySelector('.btn-picker');
+
+  // Pone las barras o los dos puntos mientras se escribe: 20112026 -> 20/11/2026
+  input.addEventListener('input', () => {
+    const n = input.value.replace(/\D/g, '');
+    input.value = separador === '/'
+      ? [n.slice(0, 2), n.slice(2, 4), n.slice(4, 8)].filter(Boolean).join('/')
+      : [n.slice(0, 2), n.slice(2, 4)].filter(Boolean).join(':');
+  });
+
+  boton.addEventListener('click', () => {
+    nativo.value = aNativo(input.value);
+    try { nativo.showPicker(); } catch { nativo.focus(); }
+  });
+
+  nativo.addEventListener('change', () => {
+    input.value = aTexto(nativo.value);
+    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new Event('change'));
+  });
+}
+
+prepararCampo(inputFechaDesde, '/', fechaEuropea, fechaISO);
+prepararCampo(inputFechaHasta, '/', fechaEuropea, fechaISO);
+prepararCampo(inputHora, ':', (v) => v.slice(0, 5), horaValida);
+
+// No se puede elegir antes de hoy ni un "hasta" anterior al "desde"
+function ajustarFechas() {
+  const hoy = hoyISO();
+  if (fechaISO(inputFechaDesde.value) && fechaISO(inputFechaDesde.value) < hoy)
+    inputFechaDesde.value = fechaEuropea(hoy);
+  const desde = fechaISO(inputFechaDesde.value) || hoy;
+  if (fechaISO(inputFechaHasta.value) && fechaISO(inputFechaHasta.value) < desde)
+    inputFechaHasta.value = fechaEuropea(desde);
+  document.querySelectorAll('.rango-fechas .selector-nativo').forEach(n => n.min = hoy);
+}
+
+inputFechaDesde.value = fechaEuropea(hoyISO());
+ajustarFechas();
+[inputFechaDesde, inputFechaHasta].forEach(el => el.addEventListener('change', () => {
+  ajustarFechas();
+  buscar();
+}));
 
 [selCategoria, inputFechaDesde, inputFechaHasta, inputHora, inputPrecio, inputDistancia, inputDuracion].forEach(el => {
   el.addEventListener('input', () => {
@@ -133,9 +189,10 @@ async function buscar() {
 
   // Una o varias categorías separadas por coma: "musica,teatro"
   if (selCategoria.value) params.set('categoria', selCategoria.value);
-  if (inputFechaDesde.value) params.set('fecha_desde', inputFechaDesde.value);
-  if (inputFechaHasta.value) params.set('fecha_hasta', inputFechaHasta.value);
-  if (inputHora.value) params.set('inicio_desde', inputHora.value);
+  // Solo se envían cuando están completas y son válidas (mientras se escriben, no)
+  if (fechaISO(inputFechaDesde.value)) params.set('fecha_desde', fechaISO(inputFechaDesde.value));
+  if (fechaISO(inputFechaHasta.value)) params.set('fecha_hasta', fechaISO(inputFechaHasta.value));
+  if (horaValida(inputHora.value)) params.set('inicio_desde', inputHora.value);
 
   // Solo se envía el límite si el slider NO está al máximo (= "Cualquiera").
   // Así no se descartan eventos sin precio/duración conocidos.

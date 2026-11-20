@@ -47,16 +47,28 @@
       <div class="grupo-filtro">
         <label for="filtro-fecha-desde">Fecha</label>
         <div class="rango-fechas">
-          <input type="date" id="filtro-fecha-desde" class="filtro-fecha" aria-label="Desde">
+          <div class="campo-picker">
+            <input type="text" id="filtro-fecha-desde" class="filtro-texto" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" autocomplete="off" aria-label="Desde">
+            <input type="date" class="selector-nativo" tabindex="-1" aria-hidden="true">
+            <button type="button" class="btn-picker" aria-label="Abrir calendario">📅</button>
+          </div>
           <span>a</span>
-          <input type="date" id="filtro-fecha-hasta" class="filtro-fecha" aria-label="Hasta">
+          <div class="campo-picker">
+            <input type="text" id="filtro-fecha-hasta" class="filtro-texto" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" autocomplete="off" aria-label="Hasta">
+            <input type="date" class="selector-nativo" tabindex="-1" aria-hidden="true">
+            <button type="button" class="btn-picker" aria-label="Abrir calendario">📅</button>
+          </div>
         </div>
       </div>
 
       <!-- Hora de inicio -->
       <div class="grupo-filtro">
         <label for="filtro-hora">Empieza a partir de las</label>
-        <input type="time" id="filtro-hora">
+        <div class="campo-picker">
+          <input type="text" id="filtro-hora" class="filtro-texto" placeholder="hh:mm" inputmode="numeric" maxlength="5" autocomplete="off">
+          <input type="time" class="selector-nativo" tabindex="-1" aria-hidden="true">
+          <button type="button" class="btn-picker" aria-label="Elegir hora">🕒</button>
+        </div>
       </div>
 
       <!-- Precio -->
