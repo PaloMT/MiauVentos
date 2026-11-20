@@ -14,7 +14,7 @@
   <div class="app-movil">
 
     <header class="cabecera">
-      <h1>Explorar eventos en Madrid</h1>
+      <h1>MiauVentos: Explorar eventos en Madrid</h1>
       <button id="btn-abrir-filtros" class="boton-busqueda">
         Buscar o filtrar eventos...
         <span id="icono-flecha">▼</span>
@@ -43,10 +43,32 @@
         </div>
       </div>
 
+      <!-- Fecha -->
+      <div class="grupo-filtro">
+        <label for="filtro-fecha-desde">Fecha</label>
+        <div class="rango-fechas">
+          <div class="campo-picker">
+            <input type="text" id="filtro-fecha-desde" class="filtro-texto" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" autocomplete="off" aria-label="Desde">
+            <input type="date" class="selector-nativo" tabindex="-1" aria-hidden="true">
+            <button type="button" class="btn-picker" aria-label="Abrir calendario">📅</button>
+          </div>
+          <span>a</span>
+          <div class="campo-picker">
+            <input type="text" id="filtro-fecha-hasta" class="filtro-texto" placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" autocomplete="off" aria-label="Hasta">
+            <input type="date" class="selector-nativo" tabindex="-1" aria-hidden="true">
+            <button type="button" class="btn-picker" aria-label="Abrir calendario">📅</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Hora de inicio -->
       <div class="grupo-filtro">
         <label for="filtro-hora">Empieza a partir de las</label>
-        <input type="time" id="filtro-hora">
+        <div class="campo-picker">
+          <input type="text" id="filtro-hora" class="filtro-texto" placeholder="hh:mm" inputmode="numeric" maxlength="5" autocomplete="off">
+          <input type="time" class="selector-nativo" tabindex="-1" aria-hidden="true">
+          <button type="button" class="btn-picker" aria-label="Elegir hora">🕒</button>
+        </div>
       </div>
 
       <!-- Precio -->
