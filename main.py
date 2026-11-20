@@ -24,15 +24,13 @@ RUTA_CSV = Path(__file__).parent / "data" / "eventos.csv"
 # "id" es lo que envía el HTML en ?categoria=...
 GRUPOS = [
     {"id": "cursos_talleres", "nombre": "Cursos y talleres",          "csv": ["taller"],        "color": None},
-    {"id": "musica",          "nombre": "Música",                     "csv": ["musica"],        "color": None},
-    {"id": "teatro",          "nombre": "Espectáculos",             "csv": ["teatro"],        "color": None},
-    {"id": "cine",            "nombre": "Cine",                       "csv": ["cine"],          "color": None},
+    {"id": "musica",          "nombre": "Música",                     "csv": ["musica","danza"],        "color": None},
+    {"id": "teatro",          "nombre": "Espectáculos",             "csv": ["teatro","cine"],        "color": None},
     {"id": "deporte",         "nombre": "Deporte",                    "csv": ["deporte"],       "color": None},
     {"id": "infantil",        "nombre": "Infantil",                   "csv": ["infantil"],      "color": None},
     {"id": "conferencias",    "nombre": "Conferencias",               "csv": ["conferencia"],   "color": None},
     {"id": "exposicion",      "nombre": "Exposición",                 "csv": ["exposicion"],    "color": None},
     {"id": "fiestas",         "nombre": "Fiestas y festivales",       "csv": ["fiestas"],       "color": "rosa"},
-    {"id": "danza",           "nombre": "Danza",                      "csv": ["danza"],         "color": None},
     {"id": "literatura",      "nombre": "Literatura y recitales",     "csv": ["literatura","club_lectura"],    "color": None},
     {"id": "visitas",         "nombre": "Visitas e itinerarios",      "csv": ["visita_guiada"], "color": None},
     {"id": "aire_libre",      "nombre": "Aire libre y medio ambiente", "csv": ["aire_libre"],   "color": None},
