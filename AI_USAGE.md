@@ -1,14 +1,13 @@
 # Uso de inteligencia artificial en el proyecto
 
-Este documento recoge de forma transparente cómo se ha utilizado IA durante el desarrollo de **Eventos cerca de ti** (explorador de eventos de Madrid).
+Este documento recoge de forma transparente cómo se ha utilizado IA durante el desarrollo de **MiauVentos** (explorador de eventos de Madrid).
 
 ## 1. Herramientas utilizadas
 
 | Herramienta | Proveedor | Para qué se usó |
 |---|---|---|
 | Claude | Anthropic | Revisión de código, detección de errores de integración entre frontend y backend y generación de fragmentos de código |
-
-<!-- Añade aquí otras herramientas si las habéis usado (Copilot, ChatGPT, etc.) -->
+| Gemini | Google | Diseño del prototipo, depuración de código, creación del filtrado dinámico |
 
 ## 2. Resumen del proyecto
 
@@ -37,14 +36,18 @@ La IA generó la versión completa del archivo con los cambios anteriores integr
 
 La estructura y el borrador de `IA_USAGE.md` también se generaron con IA y después se revisaron por el equipo.
 
+### 3.4 Interfaz de usuario
+
+Tras revisar un primer prototipo completo, se optó por un enfoque práctico sin librerías externas. Se estructuró la interfaz en HTML y CSS puro, se creó el menú desplegable y el filtrado dinámico en JavaScript, y se añadieron dinámicamente las . Luego se resolvieron errores de sintaxis y conflictos de variables entre los scripts y la lógica de conexión con la API (script_backend.js).
+
 ## 4. Qué NO ha hecho la IA
 
-- El diseño general de la aplicación y la decisión de agrupar las categorías del CSV en 12 grupos.
+- El planteamento de la problemática y el diseño general de la aplicación. 
+- La decisión de agrupar las categorías del CSV.
 - La recopilación y preparación del dataset `eventos.csv`.
 - Los estilos (`styles.css`) y las imágenes de categoría.
 - Las pruebas finales y la decisión de qué cambios aceptar.
 
-<!-- Ajusta esta sección a la realidad de vuestro proyecto -->
 
 ## 5. Verificación y responsabilidad
 
