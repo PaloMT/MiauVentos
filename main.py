@@ -1,11 +1,11 @@
 import csv
 import unicodedata
-from datetime import datetime, time
+from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="API de eventos")
@@ -44,6 +44,9 @@ GRUPOS = [
 GRUPO_DE = {c: g for g in GRUPOS for c in g["csv"]}
 GRUPO_OTROS = GRUPO_DE["otros"]  # categorías nuevas o desconocidas caen aquí
 
+# date.weekday() -> nombre que usa la columna dias_semana del CSV
+DIAS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
+
 
 # ---------- Utilidades ----------
 
@@ -67,6 +70,30 @@ def a_hora(valor: str) -> Optional[time]:
         return None
 
 
+def a_fecha(valor: str) -> Optional[date]:
+    try:
+        return date.fromisoformat(valor.strip())
+    except (ValueError, AttributeError):
+        return None
+
+
+def proxima_sesion(evento: dict, desde: date, hasta: Optional[date]) -> Optional[date]:
+    """Primer día entre desde y hasta en el que hay sesión, o None si no hay ninguno.
+
+    Hay sesión si el día está entre fecha_inicio y fecha_fin, cae en uno de los
+    dias_semana (si los hay) y no está en dias_excluidos (ver data/ESQUEMA.md).
+    """
+    if evento["_inicio"] is None:
+        return desde  # sin fechas: no se puede descartar
+    dia = max(evento["_inicio"], desde)
+    ultimo = min(evento["_fin"], hasta) if hasta else evento["_fin"]
+    while dia <= ultimo:
+        if (not evento["_dias"] or DIAS[dia.weekday()] in evento["_dias"]) and dia not in evento["_excluidos"]:
+            return dia
+        dia += timedelta(days=1)
+    return None
+
+
 # ---------- Carga del CSV (una sola vez) ----------
 
 @lru_cache(maxsize=1)
@@ -79,6 +106,7 @@ def cargar_eventos() -> list[dict]:
             precio = 0.0 if gratis else a_numero(fila["precio_min"])  # None = precio desconocido
 
             grupo = GRUPO_DE.get(fila["categoria"], GRUPO_OTROS)
+            inicio = a_fecha(fila["fecha_inicio"])
 
             eventos.append({
                 # Datos para mostrar en el HTML
@@ -110,6 +138,10 @@ def cargar_eventos() -> list[dict]:
                 "url": fila["url"],
                 # Campos internos para filtrar (se quitan antes de responder)
                 "_hora": a_hora(fila["hora_inicio"]),
+                "_inicio": inicio,
+                "_fin": a_fecha(fila["fecha_fin"]) or inicio,  # sin fin = un solo día
+                "_dias": {normalizar(d) for d in fila["dias_semana"].split(";") if d.strip()},
+                "_excluidos": {f for f in map(a_fecha, fila["dias_excluidos"].split(";")) if f},
             })
     return eventos
 
@@ -141,16 +173,28 @@ def obtener_eventos(
     inicio_hasta: Optional[str] = Query(None, pattern=r"^\d{2}:\d{2}$", description="HH:MM"),
     precio_min: Optional[float] = Query(None, ge=0),
     precio_max: Optional[float] = Query(None, ge=0),
+    fecha_desde: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="AAAA-MM-DD; por defecto, hoy"),
+    fecha_hasta: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="AAAA-MM-DD"),
 ):
     cats = {normalizar(c) for c in categoria.split(",") if c.strip()} if categoria else None
     desde = a_hora(inicio_desde) if inicio_desde else None
     hasta = a_hora(inicio_hasta) if inicio_hasta else None
+    # Sin fecha_desde se usa hoy, para no mostrar eventos que ya terminaron
+    dia_desde = a_fecha(fecha_desde) if fecha_desde else date.today()
+    dia_hasta = a_fecha(fecha_hasta) if fecha_hasta else None
+    if dia_desde is None or (fecha_hasta and dia_hasta is None):
+        raise HTTPException(status_code=422, detail="Fecha no válida, usa AAAA-MM-DD")
 
     resultados = []
 
     for e in cargar_eventos():
         # Categoría (por grupo de la web; admite varias)
         if cats and e["grupo"] not in cats:
+            continue
+
+        # Fecha (tiene que haber alguna sesión entre dia_desde y dia_hasta)
+        proxima = proxima_sesion(e, dia_desde, dia_hasta)
+        if proxima is None:
             continue
 
         # Duración
@@ -177,6 +221,12 @@ def obtener_eventos(
             if precio_max is not None and e["precio"] > precio_max:
                 continue
 
-        resultados.append(publico(e))
+        resultados.append((proxima, e))
+
+    # Orden por fecha de la próxima sesión. El mismo día, primero lo que empieza
+    # ese día y después lo que ya estaba en curso (exposiciones largas, etc.)
+    resultados.sort(key=lambda r: (r[0], r[1]["_inicio"] is not None and r[1]["_inicio"] < r[0],
+                                   r[1]["_hora"] or time.max))
+    resultados = [{**publico(e), "proxima_fecha": proxima.isoformat()} for proxima, e in resultados]
 
     return {"total": len(resultados), "eventos": resultados}

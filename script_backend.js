@@ -14,6 +14,8 @@ const avisoSinResultados = document.getElementById('sin-resultados');
 
 const selCategoria = document.getElementById('filtro-categoria');
 const inputHora = document.getElementById('filtro-hora');
+const inputFechaDesde = document.getElementById('filtro-fecha-desde');
+const inputFechaHasta = document.getElementById('filtro-fecha-hasta');
 const inputPrecio = document.getElementById('filtro-precio');
 const inputDistancia = document.getElementById('filtro-distancia');
 const inputDuracion = document.getElementById('filtro-duracion');
@@ -49,7 +51,13 @@ function textoFecha(e) {
   if (e.estado === 'en_curso') {
     return `En curso · hasta ${formatoFecha(e.fecha_fin)}`;
   }
-  return `${formatoFecha(e.fecha_inicio)}${hora}`;
+  // En eventos recurrentes, la próxima sesión dentro del rango elegido
+  return `${formatoFecha(e.proxima_fecha || e.fecha_inicio)}${hora}`;
+}
+
+function hoyISO() {   // "2026-11-20" en hora local (toISOString usaría UTC)
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function textoDuracion(min) {
@@ -90,7 +98,15 @@ inputDuracion.addEventListener('input', () => {
 });
 
 // Cualquier cambio de filtro -> buscar (con pequeña espera para no saturar)
-[selCategoria, inputHora, inputPrecio, inputDistancia, inputDuracion].forEach(el => {
+// Fechas: no se puede elegir antes de hoy ni un "hasta" anterior al "desde"
+inputFechaDesde.value = inputFechaDesde.min = inputFechaHasta.min = hoyISO();
+inputFechaDesde.addEventListener('input', () => {
+  inputFechaHasta.min = inputFechaDesde.value || hoyISO();
+  if (inputFechaHasta.value && inputFechaHasta.value < inputFechaHasta.min)
+    inputFechaHasta.value = inputFechaHasta.min;
+});
+
+[selCategoria, inputFechaDesde, inputFechaHasta, inputHora, inputPrecio, inputDistancia, inputDuracion].forEach(el => {
   el.addEventListener('input', () => {
     clearTimeout(temporizador);
     temporizador = setTimeout(buscar, 250);
@@ -117,6 +133,8 @@ async function buscar() {
 
   // Una o varias categorías separadas por coma: "musica,teatro"
   if (selCategoria.value) params.set('categoria', selCategoria.value);
+  if (inputFechaDesde.value) params.set('fecha_desde', inputFechaDesde.value);
+  if (inputFechaHasta.value) params.set('fecha_hasta', inputFechaHasta.value);
   if (inputHora.value) params.set('inicio_desde', inputHora.value);
 
   // Solo se envía el límite si el slider NO está al máximo (= "Cualquiera").

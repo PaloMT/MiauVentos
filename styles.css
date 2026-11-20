@@ -127,7 +127,8 @@
    margin-top: 12px;
  }
 
- #filtro-hora {
+ #filtro-hora,
+ .filtro-fecha {
    width: 100%;
    padding: 10px 12px;
    border: 1px solid #d1d5db;
@@ -140,6 +141,18 @@
    outline: none;
    cursor: pointer;
    transition: border-color 0.2s ease;
+ }
+
+ /* Desde ... a ... hasta */
+ .rango-fechas {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+ }
+
+ .rango-fechas .filtro-fecha {
+   flex: 1;
+   min-width: 0;
  }
 
  .panel-filtros {
